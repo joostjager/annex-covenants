@@ -89,8 +89,9 @@ func spend(txHex string) error {
 		return fmt.Errorf("error deserializing raw covenant tx: %w", err)
 	}
 
-	// Extract signature from the annex.
-	sig := covenantTx.TxIn[0].Witness[1][1:]
+	// Extract signature from the annex. Skip the annex tag and the 0x00
+	// unstructured annex marker.
+	sig := covenantTx.TxIn[0].Witness[1][2:]
 	if len(sig) != 64 {
 		return fmt.Errorf("invalid signature length %v", len(sig))
 	}
@@ -222,10 +223,16 @@ func create(inputPsbt string) error {
 	// is unspendable. By storing it in the annex, we can always recover the
 	// signature and spend the covenant output. This is assuming that there
 	// will always be bitcoin nodes around that do not prune witness data.
+	//
+	// Precede the annex by a 0x00 byte to indicate that the annex is
+	// unstructured.
+	annex := make([]byte, 65)
+	copy(annex[1:], sig.Serialize())
+
 	packet.Inputs[0].Unknowns = []*psbt.Unknown{
 		{
 			Key:   []byte("annex"),
-			Value: sig.Serialize(),
+			Value: annex,
 		},
 	}
 

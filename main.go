@@ -41,6 +41,9 @@ const (
 	fixedOutputIndex    = 0
 )
 
+// psbtAnnexKey is the key used in the psbt unknown map to indicate the annex.
+var psbtAnnexKey = []byte("annex")
+
 func main() {
 	app := &cli.App{
 		Commands: []*cli.Command{
@@ -231,9 +234,20 @@ func create(inputPsbt string) error {
 
 	packet.Inputs[0].Unknowns = []*psbt.Unknown{
 		{
-			Key:   []byte("annex"),
+			Key:   psbtAnnexKey,
 			Value: annex,
 		},
+	}
+
+	// Let the other inputs commit to an empty annex to opt-in to annex
+	// usage and make this transaction standard.
+	for i := 1; i < len(packet.Inputs); i++ {
+		packet.Inputs[i].Unknowns = []*psbt.Unknown{
+			{
+				Key:   psbtAnnexKey,
+				Value: []byte{},
+			},
+		}
 	}
 
 	// Output the updated psbt in base64 format.
